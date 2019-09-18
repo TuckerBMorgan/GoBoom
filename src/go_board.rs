@@ -24,12 +24,27 @@ impl TileStatus {
             }
         }
     }
+
+    pub fn into_u8(&self) -> u8 {
+        match self {
+            TileStatus::Empty => {
+                0
+            },
+            TileStatus::White => {
+                1
+            },
+            TileStatus::Black => {
+                2
+            },
+
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
 pub struct Tile {
-    status: TileStatus,
-    is_alive: bool
+    pub status: TileStatus,
+    pub is_alive: bool
 }
 
 impl Tile {
@@ -44,7 +59,7 @@ impl Tile {
 
 
 pub struct GoBoard {
-    board: [[Tile;19];19]    
+    pub board: [[Tile;19];19]    
 }
 
 impl GoBoard {

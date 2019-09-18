@@ -1,5 +1,7 @@
-use GoBooM;
+//use GoBooM;
+use std::io::prelude::*;
 use storm::*;
+use std::str;
 use storm::time::*;
 use std::net::TcpStream;
 
@@ -33,7 +35,9 @@ fn connect_to_server() -> Option<TcpStream> {
 }
 
 fn game(mut engine: Engine) {
-    let stream = connect_to_server();
+    let mut stream = connect_to_server();
+    let mut stream = stream.unwrap();
+
     //return;
     engine.window_clear_color(storm::color::RGBA8::new(0.392, 0.584, 0.929, 1.0));
 
@@ -63,8 +67,39 @@ fn game(mut engine: Engine) {
 
     engine.sprite_set(&screen, &sprites);
 
+    let mut read_buffer = [0;128];
+
+    let mut live_buffer : Vec<u8> = vec![];
+
     while is_active {
 
+        let read_bytes = stream.read(&mut read_buffer);
+
+        match read_bytes {
+            Ok(number) => {
+                if number > 0 {
+                    let mut new_vec = read_buffer[0..number].to_vec();
+                    live_buffer.append(&mut new_vec);
+                    
+                    let mut has_found_first_part = false;
+                    for i in 0..live_buffer.len() {
+                        if live_buffer[i] as char == '@' {
+                            if has_found_first_part == false {
+                                has_found_first_part == true;
+                            }
+                            else {
+                                let result = String::from(str::from_utf8(&live_buffer[0..i]).unwrap());
+                                
+                            }
+                        }
+                    }
+
+                }
+            },
+            Err(e) => {
+                println!("{:?}", e);
+            }
+        }
         while let Some(message) = engine.input_poll() {
             match message {
                 InputMessage::CloseRequested => is_active = false,
