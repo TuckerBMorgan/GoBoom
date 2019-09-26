@@ -4,27 +4,28 @@ use std::io::prelude::*;
 
 //represents who can play a game
 pub trait Controller {
-    fn send_message(&mut self, message: Box<dyn Rune>);    
+    fn send_message(&mut self, message: String);
 }
 
 pub struct PlayerController {
-    tcp_stream: TcpStream
+   // tcp_stream: TcpStream
 }
 
 impl PlayerController {
-    pub fn new(tcp_stream: TcpStream) -> PlayerController {
+    pub fn new() -> PlayerController {
         PlayerController {
-            tcp_stream
         }
     }
 
+    pub fn run() {
 
+    }
 }
 
 impl Controller for PlayerController {
-    fn send_message(&mut self, message: Box<dyn Rune>) {
-        let _ = self.tcp_stream.write(&message.to_string().into_bytes());
-        let _ = self.tcp_stream.write(b"@@");
+    fn send_message(&mut self, message: String) {
+  //      let _ = self.tcp_stream.write(&message.to_string().into_bytes());
+ //       let _ = self.tcp_stream.write(b"@@");
     }
 }
 
@@ -41,7 +42,7 @@ impl AIController {
 }
 
 impl Controller for AIController {
-    fn send_message(&mut self, message: Box<dyn Rune>) {
+    fn send_message(&mut self, message: String) {
         
     }
 }

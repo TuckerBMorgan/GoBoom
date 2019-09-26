@@ -1,0 +1,11 @@
+2019-09-18 22:29:05,272 [36mINFO [0m [storm] Engine started.
+2019-09-18 22:29:06,594 [36mINFO [0m [storm::render::gl::window] SDL Loaded Version { major: 2, minor: 0, patch: 9 }
+2019-09-18 22:29:06,594 [36mINFO [0m [storm::render::gl::window] OpenGL Loaded 4.1 ATI-2.9.26
+2019-09-18 22:29:06,595 [36mINFO [0m [storm::render::gl::window] Set vsync to Disabled
+2019-09-18 22:29:07,625 [36mINFO [0m [storm::texture::texture_atlas] Loaded raw texture at Vector4 [0, 16, 0, 16]
+2019-09-18 22:29:08,636 [36mINFO [0m [storm::texture::font_atlas] Loaded font from bytes
+2019-09-18 22:29:08,636 [36mINFO [0m [storm] Game started.
+2019-09-18 22:29:08,989 [36mINFO [0m [storm::texture::texture_atlas] Loaded raw texture at Vector4 [16, 8208, 0, 8192]
+2019-09-18 22:29:09,328 [36mINFO [0m [storm::texture::texture_atlas] Loaded raw texture at Vector4 [8208, 16400, 0, 8192]
+2019-09-18 22:29:09,395 [36mINFO [0m [storm::render::gl::state] Window resized Vector2 [1280.0, 925.0]
+2019-09-18 22:29:09,414 TRACE [storm::time::timer] [R] Frame       :    1 /      19 tps | 52551612 ns

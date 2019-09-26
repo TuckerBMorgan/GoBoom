@@ -1,8 +1,6 @@
 mod go_board;
-mod runes;
 
-pub use go_board::GoBoard;
-pub use runes::*;
+pub use go_board::*;
 
 /*
 #[cfg(test)]

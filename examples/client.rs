@@ -1,9 +1,15 @@
+mod client_lib;
 //use GoBooM;
 use std::io::prelude::*;
 use storm::*;
 use std::str;
 use storm::time::*;
 use std::net::TcpStream;
+
+use GoBooM::*;
+use client_lib::*;
+
+use serde_json::{Result, Value};
 
 fn main() {
     Engine::start(
@@ -19,7 +25,7 @@ fn main() {
         game,
     );
 }
-
+ 
 
 fn connect_to_server() -> Option<TcpStream> {
     match TcpStream::connect("localhost:3333") {
@@ -34,6 +40,38 @@ fn connect_to_server() -> Option<TcpStream> {
     None
 }
 
+fn handle_rune(message: String, go_board: &mut GoBoard) {
+    println!("{:?}", message);
+    let v : Value = serde_json::from_str(&message).unwrap();
+    let as_obj = v.as_object().unwrap();
+    let rune_type = as_obj.get("rune_type").unwrap().as_str().unwrap();
+
+    if rune_type == "set_board_state" {
+        let sbs : SetBoardState = serde_json::from_str(&message).unwrap();
+        for x in 0..19 {
+            for y in 0..19 {
+                match sbs.board[x][y] {
+                    0 => {
+                        go_board.board[x][y].status = TileStatus::Empty;
+                    },
+                    1 => {
+                        go_board.board[x][y].status = TileStatus::White;
+                    },
+                    2 => {
+                        go_board.board[x][y].status = TileStatus::Black;
+                    },
+                    _=> {
+                        println!("This means that a data has yet to work");
+                    }
+                }
+            }
+        }
+    }
+    else {
+
+    }
+}
+
 fn game(mut engine: Engine) {
     let mut stream = connect_to_server();
     let mut stream = stream.unwrap();
@@ -43,7 +81,7 @@ fn game(mut engine: Engine) {
 
     let white_texture = engine.texture_create(include_bytes!("resources/images/WhitePiece.png").as_ref(), TextureFormat::PNG);
     let black_texture = engine.texture_create(include_bytes!("resources/images/BlackPiece.png").as_ref(), TextureFormat::PNG);
-    
+    let empty_area = engine.texture_create(include_bytes!("resources/images/Cross.png").as_ref(), TextureFormat::PNG);
 
     let mut is_active = true;
     let screen = engine.batch_create(&BatchSettings::default());
@@ -51,9 +89,8 @@ fn game(mut engine: Engine) {
 
     let mut clock = Clock::new(144);
 
-
     let mut sprite = Sprite::default();
-    sprite.texture = white_texture;
+    sprite.texture = empty_area;
     sprite.size.x = 32;
     sprite.size.y = 32;
 
@@ -70,6 +107,9 @@ fn game(mut engine: Engine) {
     let mut read_buffer = [0;128];
 
     let mut live_buffer : Vec<u8> = vec![];
+    let _ = stream.set_nonblocking(true);
+
+    let mut go_boom = GoBoard::new();
 
     while is_active {
 
@@ -85,22 +125,24 @@ fn game(mut engine: Engine) {
                     for i in 0..live_buffer.len() {
                         if live_buffer[i] as char == '@' {
                             if has_found_first_part == false {
-                                has_found_first_part == true;
+                                has_found_first_part = true;
                             }
                             else {
-                                let result = String::from(str::from_utf8(&live_buffer[0..i]).unwrap());
-                                
+                                let use_values : Vec<u8> = live_buffer.drain(0..i+1).collect();
+                                let result = str::from_utf8(&use_values[0..i-1]).unwrap();
+                                handle_rune(String::from(result), &mut go_boom);
+                                break;
                             }
                         }
                     }
-
                 }
             },
-            Err(e) => {
-                println!("{:?}", e);
+            Err(_e) => {
+                //println!("{:?}", e);
             }
         }
         while let Some(message) = engine.input_poll() {
+
             match message {
                 InputMessage::CloseRequested => is_active = false,
                 _ => {
@@ -108,6 +150,25 @@ fn game(mut engine: Engine) {
                 }
             }
         }
+
+        for x in 0..19 {
+            for y in 0..19 {
+                let index = x * 19 + y;
+                match go_boom.board[x][y].status {
+                    TileStatus::Empty => {
+                        sprites[index].texture = empty_area;
+                    },
+                    TileStatus::White => {
+                        sprites[index].texture = white_texture;
+                    },
+                    TileStatus::Black => {
+                        sprites[index].texture = black_texture;
+                    }
+                }
+            }
+        }
+
+        engine.sprite_set(&screen, &sprites);
         engine.window_commit();
         clock.tick();
     }
