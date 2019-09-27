@@ -1,29 +1,31 @@
 use GoBooM::*;
 use super::server_runes::*;
 use super::controller::*;
+use std::thread;
 use std::sync::mpsc::{Sender, Receiver};
+use serde_json::{Value};
 
 pub struct GameState {
     pub board: GoBoard,
     pub turns: i32,
     runes: Vec<Box<dyn Rune>>,
-    players: Vec<Box<dyn Controller>>,
+    pub players: Vec<Controller>,
     to_client_1: Sender<String>, 
     to_client_2: Sender<String>, 
-    to_server: Receiver<String>
+    from_client: Receiver<String>
 }
 
 impl GameState {
     
     pub fn new(to_client_1: Sender<String>, 
                    to_client_2: Sender<String>, 
-                   to_server: Receiver<String>) -> GameState {
+                   from_client: Receiver<String>) -> GameState {
 
         GameState {
             board: GoBoard::new(),
             to_client_1,
             to_client_2,
-            to_server,
+            from_client,
             turns: -1,
             players: vec![],
             runes: vec![]
@@ -44,7 +46,7 @@ impl GameState {
         }
     }
 
-    pub fn new_controller(&mut self, controller: Box<dyn Controller>) {
+    pub fn new_controller(&mut self, controller: Controller) {
         self.players.push(controller);
     }
 
@@ -57,20 +59,31 @@ impl GameState {
         self.add_rune(Box::new(new_game));
 
         loop {
-            let result = self.to_server.try_recv();
+            let result = self.from_client.try_recv();
             match result {
                 Ok(value) => {
                     //likely it is a options selection rune
                     //we should parse, verify, and execute
+                    println!("{:?}", value);
+                    let v : Value = serde_json::from_str(&value).unwrap();
+                    let as_obj = v.as_object().unwrap();
+                    let rune_type = as_obj.get("rune_type").unwrap().as_str().unwrap();
+                    if rune_type == "pick_option" {
+                        let pick_option : PickOption = serde_json::from_str(&value).unwrap();
+                        self.add_rune(Box::new(pick_option));
+                    }
                 },
                 Err(_e) => {
 
                 }
             }
+
+            thread::yield_now();
         }
     }
 
     pub fn report_message_to_player(&mut self, message: String, player_index: usize) { 
+
         if player_index == 0 {
             let _ = self.to_client_1.send(message);
         }

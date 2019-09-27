@@ -13,12 +13,12 @@ pub struct SetBoardState {
 }
 
 impl SetBoardState {
-    pub fn new(_: &GoBoard) -> SetBoardState {
+    pub fn new(game_board: &GoBoard) -> SetBoardState {
         let mut board  : [[u8; 19]; 19] = [[0;19];19];
 
         for x in 0..19 {
             for y in 0..19 {
-                board[x][y] = 0;//(x % 3) as u8;
+                board[x][y] = game_board.board[x][y].status.into_u8();//(x % 3) as u8;
             }
         }
 
@@ -32,12 +32,6 @@ impl SetBoardState {
 impl Rune for SetBoardState {
     fn execute(&self, game_state: &mut GameState) {
         println!("Set Board State Rune");
-        for x in 0..19 {
-            for y in 0..19 {
-                game_state.board.board[x][y].status = TileStatus::Empty;
-            }
-        }
-
         game_state.report_message_to_player(self.to_string(), 0);
         game_state.report_message_to_player(self.to_string(), 1);
     }
@@ -111,8 +105,8 @@ impl Rune for NewGame {
         game_state.report_message_to_player(self.to_string(), 0);
         game_state.report_message_to_player(self.to_string(), 1);
 
-        let first_new_controller = NewController::new(false, 0);
-        let second_new_controller = NewController::new(false, 1);
+        let first_new_controller = NewController::new(false, 0, TileStatus::White);
+        let second_new_controller = NewController::new(false, 1, TileStatus::Black);
 
         game_state.add_rune(Box::new(first_new_controller));
         game_state.add_rune(Box::new(second_new_controller));
@@ -127,10 +121,6 @@ impl Rune for NewGame {
         let rotate_turn = RotateTurn::new();
         game_state.add_rune(Box::new(rotate_turn));
 
-        //send options rune
-        let send_options_runes = ReportOptionsRune::new(&game_state.board);
-        game_state.add_rune(Box::new(send_options_runes));
-
     }
 
     fn to_string(&self) -> String {
@@ -141,14 +131,16 @@ impl Rune for NewGame {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct NewController {
     is_me: bool,
-    id: usize
+    id: usize,
+    color: TileStatus
 }
 
 impl NewController {
-    pub fn new(is_me: bool, id: usize) -> NewController {
+    pub fn new(is_me: bool, id: usize, color: TileStatus) -> NewController {
         NewController {
             is_me,
-            id
+            id,
+            color
         }
     }
 }
@@ -169,7 +161,7 @@ impl Rune for NewController {
             game_state.report_message_to_player(clones.to_string(), 1);
         }
 
-        game_state.new_controller(Box::new(PlayerController::new()));
+        game_state.new_controller(Controller::new(self.color));
     }
 
     fn to_string(&self) -> String {
@@ -189,9 +181,48 @@ impl Rune for RotateTurn {
         game_state.turns += 1;
         game_state.report_message_to_player(self.to_string(), 0);
         game_state.report_message_to_player(self.to_string(), 1);
+
+        //send options rune
+        let send_options_runes = ReportOptionsRune::new(&game_state.board);
+        game_state.add_rune(Box::new(send_options_runes));
     }
 
     fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap().replace("{", "{\"rune_type\":\"rotate_turn\"")
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct PickOption {
+    x: usize,
+    y: usize
+}
+
+impl PickOption {
+    pub fn new(x: usize, y: usize) -> PickOption {
+        PickOption {
+            x,
+            y
+        }
+    }
+}
+
+impl Rune for PickOption {
+    fn execute(&self, game_state: &mut GameState) {
+        println!("Pick Option");
+        
+        //This should be a rune
+        game_state.board.board[self.x][self.y].status = game_state.players[game_state.get_current_player_index()].color;
+        
+        let set_board_state : SetBoardState = SetBoardState::new(&game_state.board);
+        game_state.report_message_to_player(set_board_state.to_string(), 0);
+        game_state.report_message_to_player(set_board_state.to_string(), 1);
+
+        let rotate_turn : RotateTurn = RotateTurn::new();
+        game_state.add_rune(Box::new(rotate_turn));
+    }
+
+    fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap().replace("{", "{\"rune_type\":\"pick_option\",")
     }
 }

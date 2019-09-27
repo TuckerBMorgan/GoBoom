@@ -1,8 +1,10 @@
 use serde::{Serialize, Deserialize};
 use GoBooM::*;
+use super::*;
 
 pub trait Rune : Send {
-    fn execute();
+    fn execute(&self, client_state: &mut ClientGameState);
+    fn to_string(&self) -> String;
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -10,32 +12,35 @@ pub struct SetBoardState {
    pub  board: [[u8;19];19]
 }
 
-impl SetBoardState {
-    /*
-    pub fn new(go_board: &GoBoard) -> SetBoardState {
-        let mut board  : [[u8; 19]; 19] = [[0;19];19];
+impl Rune for SetBoardState {
+    fn execute(&self, client_state: &mut ClientGameState) {
+        println!("Set Board State Rune");
 
-        for x in 0..19 {
+          for x in 0..19 {
             for y in 0..19 {
-                board[x][y] = 0;
+                match self.board[x][y] {
+                    0 => {
+                        client_state.go_board.board[x][y].status = TileStatus::Empty;
+                    },
+                    1 => {
+                        client_state.go_board.board[x][y].status = TileStatus::White;
+                    },
+                    2 => {
+                        client_state.go_board.board[x][y].status = TileStatus::Black;
+                    },
+                    _=> {
+                        println!("This means that a data has yet to work");
+                    }
+                }
             }
         }
 
-        SetBoardState {
-            board
-        }
     }
 
-    pub fn to_string(&self) -> String {
+    fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap().replace("{", "{\"rune_type\":\"set_board_state\",")
     }
-    */
-}
 
-impl Rune for SetBoardState {
-    fn execute(){ 
-
-    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
@@ -43,37 +48,109 @@ pub struct ReportOptionsRune {
    pub  board: [[bool;19];19]
 }
 
-impl ReportOptionsRune {
-    /*
-    pub fn new(go_board: &GoBoard) -> ReportOptionsRune {
-        let mut board  : [[bool; 19]; 19] = [[false;19];19];
+impl Rune for ReportOptionsRune {
+    fn execute(&self, client_state: &mut ClientGameState) {
+        println!("Report Options Rune");
+        client_state.game_state = GameState::PickingOption;
 
         for x in 0..19 {
             for y in 0..19 {
-                match go_board.board[x][y].status {
-                    TileStatus::Empty => {
-                        board[x][y] = true;
-                    },
-                    _ => {
-                        board[x][y] = false;
-                    }
+                if self.board[x][y] {
+                    client_state.go_board.board[x][y].status = TileStatus::Selectable;
                 }
             }
         }
-
-        ReportOptionsRune {
-            board
-        }
     }
 
-    pub fn to_string(&self) -> String {
+    fn to_string(&self) -> String {
         serde_json::to_string(self).unwrap().replace("{", "{\"rune_type\":\"report_options\",")
     }
-    */
 }
 
-impl Rune for ReportOptionsRune {
-    fn execute() {
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct NewGame {
 
+}
+
+
+impl Rune for NewGame {
+
+    fn execute(&self, _: &mut ClientGameState) {
+        println!("New Game Rune");
+    }
+
+    fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap().replace("{", "{\"rune_type\":\"new_game\"")
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct NewController {
+    is_me: bool,
+    id: usize,
+    color: TileStatus
+}
+
+impl Rune for NewController {
+    fn execute(&self, _: &mut ClientGameState) {
+        println!("New Controller");
+    }
+
+    fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap().replace("{", "{\"rune_type\":\"new_controller\",")
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct RotateTurn {}
+
+impl Rune for RotateTurn {
+   fn execute(&self, _: &mut ClientGameState) {
+        println!("Rotate Turn");
+    }
+
+    fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap().replace("{", "{\"rune_type\":\"rotate_turn\"")
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct PickOption {
+    x: usize,
+    y: usize
+}
+
+impl PickOption {
+    pub fn new(x: usize, y: usize) -> PickOption {
+        PickOption {
+            x,
+            y
+        }
+    }
+}
+
+impl Rune for PickOption {
+   fn execute(&self, cgs: &mut ClientGameState) {
+       cgs.report_message_to_server(self.to_string());
+
+        cgs.marked_index = -1;
+        cgs.game_state = GameState::Waiting;
+
+       for x in 0..19 {
+           for y in 0..19 {
+               match cgs.go_board.board[x][y].status {
+                    TileStatus::Selectable => {
+                        cgs.go_board.board[x][y].status = TileStatus::Empty;
+                    },
+                    _ => {
+
+                    }
+               }
+           }
+       }
+    }
+
+    fn to_string(&self) -> String {
+        serde_json::to_string(self).unwrap().replace("{", "{\"rune_type\":\"pick_option\",")
     }
 }
