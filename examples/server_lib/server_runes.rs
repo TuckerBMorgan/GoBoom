@@ -27,6 +27,21 @@ impl SetBoardState {
         }
     }
 
+    pub fn convert_to_ai_board(&mut self, color: TileStatus) {
+        for x in 0..19 {
+            for y in 0..19 {
+                if self.board[x][y] == color.into_u8() {
+                    self.board[x][y] = 1;
+                }
+                else if self.board[x][y] == 0 {
+                    
+                }
+                else {
+                    self.board[x][y] == 2;
+                }
+            }
+        }
+    }
 }
 
 impl Rune for SetBoardState {
@@ -130,9 +145,9 @@ impl Rune for NewGame {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct NewController {
-    is_me: bool,
-    id: usize,
-    color: TileStatus
+    pub is_me: bool,
+    pub id: usize,
+    pub color: TileStatus
 }
 
 impl NewController {
@@ -213,6 +228,7 @@ impl Rune for PickOption {
         
         //This should be a rune
         game_state.board.board[self.x][self.y].status = game_state.players[game_state.get_current_player_index()].color;
+        game_state.board.resolve_board();
         
         let set_board_state : SetBoardState = SetBoardState::new(&game_state.board);
         game_state.report_message_to_player(set_board_state.to_string(), 0);

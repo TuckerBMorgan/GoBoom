@@ -30,7 +30,6 @@ impl GameState {
             players: vec![],
             runes: vec![]
         }
-
     }
 
     pub fn add_rune(&mut self, rune: Box<dyn Rune>) {
@@ -82,8 +81,7 @@ impl GameState {
         }
     }
 
-    pub fn report_message_to_player(&mut self, message: String, player_index: usize) { 
-
+    pub fn report_message_to_player(&mut self, message: String, player_index: usize) {
         if player_index == 0 {
             let _ = self.to_client_1.send(message);
         }

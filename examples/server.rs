@@ -1,5 +1,6 @@
 mod server_lib;
 
+use GoBooM::*;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
@@ -10,7 +11,29 @@ use serde_json::{Value};
 
 use server_lib::*;
 
-pub fn create_game(tcp_stream: TcpStream) {
+pub fn create_game_for_two_playaer(player_1: TcpStream, player_2: TcpStream) {
+    println!("Game start with players {:?} and {:?}", player_1, player_2);
+    
+    let (to_client_1, from_server_1) = channel::<String>();
+    let (to_client_2, from_server_2) = channel::<String>();
+    let (to_server, from_client) = channel::<String>();
+
+    let to_server_1 = to_server.clone();
+    let to_server_2 = to_server.clone();
+
+    thread::spawn(move || {
+        player_thread(from_server_1, to_server_1.clone(), player_1);        
+    });
+    thread::spawn(move || {
+        player_thread(from_server_2, to_server_2.clone(), player_2);        
+    });
+
+    let game = GameState::new(to_client_1, to_client_2, from_client);
+    game.run_game();
+
+}
+
+pub fn create_game(tcp_stream: TcpStream, ai_stream: TcpStream) {
     println!("Game start with players {:?}", tcp_stream);
     
     let (to_client_1, from_server_1) = channel::<String>();
@@ -24,7 +47,7 @@ pub fn create_game(tcp_stream: TcpStream) {
         player_thread(from_server_1, to_server_1.clone(), tcp_stream);        
     });
     thread::spawn(move || {
-        ai_thread(from_server_2, to_server_2.clone());        
+        ai_thread(from_server_2, to_server_2.clone(), ai_stream);        
     });
 
     let game = GameState::new(to_client_1, to_client_2, from_client);
@@ -81,7 +104,10 @@ pub fn player_thread(from_server: Receiver<String>, to_server: Sender<String>,mu
     }
 }
 
-pub fn ai_thread(from_server: Receiver<String>, to_server: Sender<String>) {
+pub fn ai_thread(from_server: Receiver<String>, to_server: Sender<String>, mut ai_stream: TcpStream) {
+    let mut ai_color = TileStatus::Empty;
+    let mut last_set_board_state : Option<SetBoardState> = None;
+
     loop {
        let result = from_server.try_recv();
 
@@ -91,16 +117,21 @@ pub fn ai_thread(from_server: Receiver<String>, to_server: Sender<String>) {
                 let as_obj = v.as_object().unwrap();
                 let rune_type = as_obj.get("rune_type").unwrap().as_str().unwrap();
                 if rune_type == "report_options" {
-                    let ro : ReportOptionsRune = serde_json::from_str(&val).unwrap();
-                    'outer: for x in 0..19 {
-                        for y in 0..19 {
-                            if ro.board[x][y] {
-                                let po : PickOption = PickOption::new(x, y);
-                                let _ = to_server.send(po.to_string());
-                                break 'outer;
-                            }
-                        }
+                    let sbs = last_set_board_state.as_mut().unwrap();
+                    sbs.convert_to_ai_board(ai_color);
+                    let payload = sbs.to_string();
+                    let _ = ai_stream.write(payload.as_bytes());
+                    let _ = ai_stream.write("@@".as_bytes());
+                }
+                else if rune_type == "new_controller" {
+                    let nc : NewController = serde_json::from_str(&val).unwrap();
+                    if nc.is_me {
+                        ai_color = nc.color;
                     }
+                }
+                else if rune_type == "set_board_state" {
+                    let sbs : SetBoardState = serde_json::from_str(&val).unwrap();
+                    last_set_board_state = Some(sbs);
                 }
             },
             Err(_) => {
@@ -111,11 +142,30 @@ pub fn ai_thread(from_server: Receiver<String>, to_server: Sender<String>) {
     }
 }
 
+fn connect_to_server() -> Option<TcpStream> {
+    match TcpStream::connect("localhost:8381") {
+        Ok(mut stream) => {
+            return Some(stream);
+        },
+        Err(e) => {
+            println!("Failed to connect: {}", e);
+        }
+    }
+
+    None
+}
+
 pub fn main() {
-    
+
     let listener = TcpListener::bind("127.0.0.1:3333").unwrap();
+    let mut connections = vec![];
     for stream in listener.incoming() {
-        create_game(stream.unwrap());
+        if connections.len() < 2 {
+            connections.push(stream.unwrap());
+        }
+        else {
+            create_game(connections.remove(0), connections.remove(0));
+        }
         thread::yield_now();
     }
 }
