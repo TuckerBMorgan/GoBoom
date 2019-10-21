@@ -70,6 +70,7 @@ pub fn player_thread(from_server: Receiver<String>, to_server: Sender<String>,mu
 
             }
         }
+
         let mut read_buffer = [0; 128];
 
         let number = tcp_stream.read(&mut read_buffer);
@@ -89,7 +90,6 @@ pub fn player_thread(from_server: Receiver<String>, to_server: Sender<String>,mu
                                 let use_values : Vec<u8> = live_buffer.drain(0..i+1).collect();
                                 let result = str::from_utf8(&use_values[0..i-1]).unwrap();
                                 let _ = to_server.send(String::from(result));
-                                //self.handle_rune(String::from(result));
                                 break;
                             }
                         }
@@ -107,8 +107,16 @@ pub fn player_thread(from_server: Receiver<String>, to_server: Sender<String>,mu
 pub fn ai_thread(from_server: Receiver<String>, to_server: Sender<String>, mut ai_stream: TcpStream) {
     let mut ai_color = TileStatus::Empty;
     let mut last_set_board_state : Option<SetBoardState> = None;
+    let mut waiting_on_ai_responce = false;
 
     loop {
+        if waiting_on_ai_responce {
+            let mut read_buffer = [0; 128];
+
+            let number = ai_stream.read(&mut read_buffer);
+
+            continue;
+        }
        let result = from_server.try_recv();
 
         match result {
@@ -122,6 +130,7 @@ pub fn ai_thread(from_server: Receiver<String>, to_server: Sender<String>, mut a
                     let payload = sbs.to_string();
                     let _ = ai_stream.write(payload.as_bytes());
                     let _ = ai_stream.write("@@".as_bytes());
+                    waiting_on_ai_responce = true;
                 }
                 else if rune_type == "new_controller" {
                     let nc : NewController = serde_json::from_str(&val).unwrap();
@@ -157,11 +166,12 @@ fn connect_to_server() -> Option<TcpStream> {
 
 pub fn main() {
 
-    let listener = TcpListener::bind("127.0.0.1:3333").unwrap();
+    let listener = TcpListener::bind("127.0.0.1:25565").unwrap();
     let mut connections = vec![];
     for stream in listener.incoming() {
         if connections.len() < 2 {
             connections.push(stream.unwrap());
+            print!("HEY JOE CONNECT");
         }
         else {
             create_game(connections.remove(0), connections.remove(0));
